@@ -1,1 +1,16 @@
 /node_modules
+app.get("/api/users", async (req, res) => {
+    try {
+      let { initialAmount, load_per_scroll } = req.query;
+      let user = await User.find()
+        .skip(parseInt(initialAmount))
+        .limit(parseInt(load_per_scroll));
+      user ? res.status(200).json(user) : res.status(403).json("no user found");
+    } catch (error) {
+      res.status(500).json(error.message);
+    }
+  });
+  
+app.get("/api/data_pass", async(req, res)=>{
+ let response = await redis.get("key")
+})

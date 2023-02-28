@@ -1,34 +1,32 @@
-const express = require("express")
-const app = express()
-const User  = require("./models/user")
-const cors = require("cors")
-const dotenv = require("dotenv").config()
+const express = require("express");
+const app = express();
+const axios = require("axios");
+const Redis = require("ioredis");
+const async_Error_Handler = require("express-async-handler");
+const redis = new Redis();
 
-const mongoose = require("mongoose")
-mongoose.set("strictQuery", false);
-mongoose.connect(process.env.MongoURI,).then(()=>{
-      console.log("mongodb connected")
-}).catch((err)=>{
-    throw new Error (err.message)
-})
- mongoose.connection.on("disconnected", ()=>{
-    console.log("mongodb disconnected")
-})
+//External__Database ⬇️
+const Api_EndPoint = "https://dummyjson.com/products";
 
-app.use(cors())
-
-// find all users
-app.get("/api/users", async (req, res) => {
-    try {
-      let { initialAmount, load_per_scroll } = req.query;
-      let user = await User.find()
-        .skip(parseInt(initialAmount))
-        .limit(parseInt(load_per_scroll));
-      user ? res.status(200).json(user) : res.status(403).json("no user found");
-    } catch (error) {
-      res.status(500).json(error.message);
+//The api__Endpoint ⬇️
+app.get(
+  "/api/product_dataRequest",
+  async_Error_Handler(async (req, res) => {
+    //checking if the data is in redis if yes we send it to the user
+    let products_Info = await redis.get("Products");
+    if (products_Info) {
+      res.status(200).json(JSON.parse(products_Info));
+    } else {
+      //if the data is absent then we make an api call to the database
+      //when the data is fetched we set it to redis and send it to the user as well
+      let { data } = await axios.get(Api_EndPoint);
+      await redis.set("Products", JSON.stringify(data), "EX", 10000);
+      data
+        ? res.status(200).json(data)
+        : res.send("No products data was found");
     }
-  });
-
-const port = process.env.PORT || 5000
-app.listen(port,   console.log("app is listening on port 5000"))
+  })
+);
+// server is listening on port 2000 
+const port = process.env.PORT || 2000;
+app.listen(port, console.log("app is listening on port 2000"));
